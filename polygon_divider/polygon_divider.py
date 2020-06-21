@@ -24,7 +24,7 @@
 from qgis.PyQt import QtCore
 from qgis.PyQt.QtCore import QVariant, QObject, pyqtSignal, QSettings, QTranslator, qVersion, QCoreApplication, Qt, QThread
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QFileDialog, QProgressBar, QPushButton, QDialog, QDialogButtonBox, QLineEdit, QFormLayout
+from qgis.PyQt.QtWidgets import QAction, QFileDialog, QProgressBar, QPushButton, QDialog, QDialogButtonBox, QLineEdit, QFormLayout, QMessageBox
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -146,7 +146,7 @@ class ExampleWorker(AbstractWorker):
 
     #          return True
 
-    def __init__(self, layer, outFilePath, target_area, absorb_flag, direction):
+    def __init__(self, iface, inFile, outFilePath, target_area, absorb_flag, direction):
         """
         * Initialse Thread    
         """
@@ -155,7 +155,8 @@ class ExampleWorker(AbstractWorker):
         AbstractWorker.__init__(self)
 
         # import args to thread
-        self.layer = layer
+        self.iface = iface
+        self.inFile = inFile
         self.outFilePath = outFilePath
         self.target_area = target_area
         self.absorb_flag = absorb_flag
@@ -1020,7 +1021,7 @@ class UserAbortedNotification(Exception):
     pass
 
 
-def start_worker(worker, iface, message, with_progress=True):
+def start_worker(self, worker, iface, message, with_progress=True):
     """
     * Launch the worker thread
     """
@@ -1038,13 +1039,14 @@ def start_worker(worker, iface, message, with_progress=True):
     cancel_button.clicked.connect(worker.kill)
     progressMessageBar.layout().addWidget(cancel_button)
     progressMessageBar.layout().addWidget(progress_bar)
-    iface.messageBar().pushWidget(progressMessageBar, Qgis.Info)
+    self.iface.messageBar().pushWidget(progressMessageBar)
     
     for i in range(10):
         time.sleep(1)
         progress_bar.setValue(i + 1)
+
+    self.iface.messageBar().clearWidgets()
     
-    iface.messageBar().clearWidgets()
     
     # start the worker in a new thread
     # let Qt take ownership of the QThread
@@ -1309,7 +1311,7 @@ class polygondivider:
         * JJH: Run the polygon division in a thread, feed back to progress bar
         """
         
-        worker = ExampleWorker(inFile, outFilePath, targetArea, absorbFlag, direction)
+        worker = ExampleWorker(self.iface, inFile, outFilePath, targetArea, absorbFlag, direction)
         start_worker(worker, self.iface, 'running the worker')
 
 
@@ -1350,6 +1352,8 @@ class polygondivider:
             # JH: RUN THE TOOL------------------------------------------------
             
             # get user settings
+            # lyr_name2 = self.dlg.comboBox.currentText()
+            # inFile = QgsProject.instance().mapLayersByName(lyr_name2)[0]
             inFile = self.dlg.comboBox.currentIndex()
             outFilePath = self.dlg.lineEdit_2.text()
             targetArea = float(self.dlg.lineEdit.text())
